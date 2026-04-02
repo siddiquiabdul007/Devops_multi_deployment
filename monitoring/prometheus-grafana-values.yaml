@@ -1,0 +1,43 @@
+grafana:
+  enabled: true
+  adminPassword: "prom-operator"
+  defaultDashboardsEnabled: true
+  
+  # Inject an extra custom dashboard provider for our application
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+          
+  dashboards:
+    default:
+      application-metrics:
+        # A simple JSON dashboard logic. For full dashboard JSON you'd typically configmap this or download it.
+        # This deploys a very basic placeholder for demonstration.
+        json: |
+          {
+            "id": null,
+            "title": "Microservices Overview",
+            "tags": [],
+            "style": "dark",
+            "timezone": "browser",
+            "editable": true,
+            "panels": []
+          }
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 5d
+    resources:
+      requests:
+        memory: 400Mi

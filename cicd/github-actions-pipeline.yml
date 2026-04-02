@@ -1,0 +1,101 @@
+name: Build and Deploy Microservices
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ACR_LOGIN_SERVER: devopsmulticloudacr.azurecr.io
+  AZURE_RESOURCE_GROUP: multicloud-dev-rg
+  AKS_CLUSTER: multicloud-dev-aks
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install User Service Dependencies
+        run: cd services/user-service && npm install
+
+      - name: Install Order Service Dependencies
+        run: cd services/order-service && npm install
+
+  build-and-push-docker:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Log into Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push user-service image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t ${{ env.ACR_LOGIN_SERVER }}/user-service:$IMAGE_TAG -t ${{ env.ACR_LOGIN_SERVER }}/user-service:latest ./services/user-service
+          docker push ${{ env.ACR_LOGIN_SERVER }}/user-service:$IMAGE_TAG
+          docker push ${{ env.ACR_LOGIN_SERVER }}/user-service:latest
+
+      - name: Build and Push order-service image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t ${{ env.ACR_LOGIN_SERVER }}/order-service:$IMAGE_TAG -t ${{ env.ACR_LOGIN_SERVER }}/order-service:latest ./services/order-service
+          docker push ${{ env.ACR_LOGIN_SERVER }}/order-service:$IMAGE_TAG
+          docker push ${{ env.ACR_LOGIN_SERVER }}/order-service:latest
+
+  deploy-to-aks:
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get AKS Credentials
+        run: az aks get-credentials --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AKS_CLUSTER }}
+
+      - name: Validate Kubernetes Manifests
+        run: |
+          # Optionally validate with kubeval or dry-run
+          kubectl apply -f ./k8s/base/ --dry-run=client
+
+      - name: Deploy to AKS
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          # Update the images to use the specific commit SHA
+          sed -i "s|devopsmulticloudacr.azurecr.io/user-service:latest|${{ env.ACR_LOGIN_SERVER }}/user-service:$IMAGE_TAG|g" ./k8s/base/user-service.yaml
+          sed -i "s|devopsmulticloudacr.azurecr.io/order-service:latest|${{ env.ACR_LOGIN_SERVER }}/order-service:$IMAGE_TAG|g" ./k8s/base/order-service.yaml
+          
+          kubectl apply -f ./k8s/base/
+
+      - name: Verify Deployment / Rollback if failed
+        run: |
+          # Wait for rollout and rollback if it fails
+          if ! kubectl rollout status deployment/user-service --timeout=120s; then
+            kubectl rollout undo deployment/user-service
+            exit 1
+          fi
+          if ! kubectl rollout status deployment/order-service --timeout=120s; then
+            kubectl rollout undo deployment/order-service
+            exit 1
+          fi
