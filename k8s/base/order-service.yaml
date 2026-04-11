@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: order-service
-        image: devopsmulticloudacr.azurecr.io/order-service:latest
+        image: devopsacr3225.azurecr.io/order-service:v1
         ports:
         - containerPort: 3002
         env:

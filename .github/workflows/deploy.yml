@@ -1,0 +1,43 @@
+name: Build and Deploy to AKS
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ACR_NAME: devopsacr3225
+  RESOURCE_GROUP: devops-rg
+  AKS_CLUSTER: devops-aks
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Login to ACR
+      run: az acr login --name $ACR_NAME
+
+    - name: Build and push user-service
+      run: |
+        docker build -t $ACR_NAME.azurecr.io/user-service:v1 ./services/user-service
+        docker push $ACR_NAME.azurecr.io/user-service:v1
+
+    - name: Build and push order-service
+      run: |
+        docker build -t $ACR_NAME.azurecr.io/order-service:v1 ./services/order-service
+        docker push $ACR_NAME.azurecr.io/order-service:v1
+
+    - name: Set AKS context
+      run: az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
+
+    - name: Deploy to Kubernetes
+      run: kubectl apply -f k8s/base/
