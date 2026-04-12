@@ -16,9 +16,11 @@ variable "env" {
 variable "node_count" {
   type        = number
   description = "AKS node count"
+  default     = 1
 }
 
 variable "vm_size" {
   type        = string
   description = "VM size for AKS nodes"
+  default     = "Standard_B2s"
 }
