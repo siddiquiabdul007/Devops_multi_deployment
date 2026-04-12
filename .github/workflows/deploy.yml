@@ -20,9 +20,11 @@ jobs:
 
     steps:
 
+    # ✅ Checkout code
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # ✅ Azure Login using OIDC
     - name: Azure Login (OIDC)
       uses: azure/login@v2
       with:
@@ -30,25 +32,33 @@ jobs:
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+    # ✅ Login to ACR
     - name: Login to ACR
       run: az acr login --name $ACR_NAME
 
-    # 🔥 BUILD IMAGES (FIXED PATHS)
+    # ✅ Build Docker Images
     - name: Build Docker images
       run: |
         docker build -t $ACR_NAME.azurecr.io/user-service:${{ github.sha }} ./services/user-service
         docker build -t $ACR_NAME.azurecr.io/order-service:${{ github.sha }} ./services/order-service
 
+    # ✅ Push Images to ACR
     - name: Push images
       run: |
         docker push $ACR_NAME.azurecr.io/user-service:${{ github.sha }}
         docker push $ACR_NAME.azurecr.io/order-service:${{ github.sha }}
 
+    # ✅ Get AKS Credentials
     - name: Get AKS credentials
       run: |
         az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
 
+    # ✅ Deploy + Track Version
     - name: Deploy to AKS
       run: |
         kubectl set image deployment/user-service user-service=$ACR_NAME.azurecr.io/user-service:${{ github.sha }}
         kubectl set image deployment/order-service order-service=$ACR_NAME.azurecr.io/order-service:${{ github.sha }}
+
+        # 🔥 Add change tracking (IMPORTANT)
+        kubectl annotate deployment user-service kubernetes.io/change-cause="Deploy ${{ github.sha }}"
+        kubectl annotate deployment order-service kubernetes.io/change-cause="Deploy ${{ github.sha }}"
