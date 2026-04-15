@@ -6,9 +6,18 @@ metadata:
     app: user-service
 spec:
   replicas: 2
+
+  # 🔥 ZERO-DOWNTIME STRATEGY
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
   selector:
     matchLabels:
       app: user-service
+
   template:
     metadata:
       labels:
@@ -16,12 +25,17 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: devopsacr3225.azurecr.io/user-service:v1
+
+        # 🔥 FIXED ACR
+        image: devopsdevacr5225.azurecr.io/user-service:latest
+
         ports:
         - containerPort: 3001
+
         env:
         - name: PORT
           value: "3001"
+
         resources:
           requests:
             cpu: "100m"
@@ -29,30 +43,37 @@ spec:
           limits:
             cpu: "250m"
             memory: "256Mi"
+
         livenessProbe:
           httpGet:
             path: /health
             port: 3001
           initialDelaySeconds: 10
           periodSeconds: 15
+
         readinessProbe:
           httpGet:
             path: /health
             port: 3001
           initialDelaySeconds: 5
           periodSeconds: 10
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: user-service
 spec:
-  type: ClusterIP
+  # 🔥 MAKE PUBLIC (no manual patch anymore)
+  type: LoadBalancer
+
   selector:
     app: user-service
+
   ports:
   - port: 80
     targetPort: 3001
+
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -63,8 +84,10 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: user-service
+
   minReplicas: 2
   maxReplicas: 5
+
   metrics:
   - type: Resource
     resource:

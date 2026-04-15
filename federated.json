@@ -1,0 +1,7 @@
+{
+  "name": "github-actions",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:siddiquiabdul007/Devops_multi_deployment:ref:refs/heads/main",
+  "description": "GitHub Actions access",
+  "audiences": ["api://AzureADTokenExchange"]
+}
