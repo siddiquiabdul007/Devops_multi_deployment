@@ -1,13 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
+  name: user-service-stable
   labels:
     app: user-service
+    version: stable
+
 spec:
   replicas: 2
 
-  # 🔥 ZERO-DOWNTIME STRATEGY
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -17,17 +18,18 @@ spec:
   selector:
     matchLabels:
       app: user-service
+      version: stable
 
   template:
     metadata:
       labels:
         app: user-service
+        version: stable
+
     spec:
       containers:
       - name: user-service
-
-        # 🔥 FIXED ACR
-        image: devopsdevacr5225.azurecr.io/user-service:latest
+        image: devopsdevacr6402.azurecr.io/user-service:v1
 
         ports:
         - containerPort: 3001
@@ -64,11 +66,10 @@ kind: Service
 metadata:
   name: user-service
 spec:
-  # 🔥 MAKE PUBLIC (no manual patch anymore)
-  type: LoadBalancer
+  type: ClusterIP
 
   selector:
-    app: user-service
+    app: user-service   # ⚠️ DO NOT ADD VERSION HERE
 
   ports:
   - port: 80
@@ -83,7 +84,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: user-service
+    name: user-service-stable   # ⚠️ UPDATED
 
   minReplicas: 2
   maxReplicas: 5

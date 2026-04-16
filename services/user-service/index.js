@@ -3,11 +3,14 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 app.get('/users', (req, res) => {
-  res.json([
-    { id: 1, name: 'Alice', role: 'admin' },
-    { id: 2, name: 'Bob', role: 'user' },
-    { id: 3, name: 'Charlie', role: 'user' }
-  ]);
+  res.json({
+    version: "canary-v2",   // 👈 THIS IS THE MAGIC
+    users: [
+      { id: 1, name: 'Alice', role: 'admin' },
+      { id: 2, name: 'Bob', role: 'user' },
+      { id: 3, name: 'Charlie', role: 'user' }
+    ]
+  });
 });
 
 app.get('/health', (req, res) => {

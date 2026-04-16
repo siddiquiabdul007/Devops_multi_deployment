@@ -26,6 +26,7 @@ module "acr" {
   acr_name            = "${var.prefix}${var.env}acr${random_integer.rand.result}"
   resource_group_name = "${var.prefix}-${var.env}-rg"
   location            = var.location
+  depends_on = [module.aks]
 }
 
 # Create AKS
