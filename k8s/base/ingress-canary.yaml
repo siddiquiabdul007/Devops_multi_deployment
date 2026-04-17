@@ -5,10 +5,9 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/canary: "true"
     nginx.ingress.kubernetes.io/canary-weight: "10"
-
+    # ❌ remove rewrite here too
 spec:
   ingressClassName: nginx
-
   rules:
   - http:
       paths:
@@ -16,6 +15,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: user-service
+            name: user-service-canary
             port:
               number: 80

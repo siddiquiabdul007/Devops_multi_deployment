@@ -23,7 +23,8 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: devopsdevacr6402.azurecr.io/user-service:v2   # 👈 NEW VERSION
+        image: devopsdevacr3168.azurecr.io/user-service:v2   # 👈 NEW VERSION
+        imagePullPolicy: Always
 
         ports:
         - containerPort: 3001
@@ -46,3 +47,17 @@ spec:
             port: 3001
           initialDelaySeconds: 5
           periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service-canary
+spec:
+  type: ClusterIP
+  selector:
+    app: user-service
+    version: canary
+  ports:
+  - port: 80
+    targetPort: 3001

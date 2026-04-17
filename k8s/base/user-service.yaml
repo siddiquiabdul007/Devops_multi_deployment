@@ -29,7 +29,8 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: devopsdevacr6402.azurecr.io/user-service:v1
+        image: devopsdevacr3168.azurecr.io/user-service:v1
+        imagePullPolicy: Always
 
         ports:
         - containerPort: 3001
@@ -69,7 +70,8 @@ spec:
   type: ClusterIP
 
   selector:
-    app: user-service   # ⚠️ DO NOT ADD VERSION HERE
+    app: user-service
+    version: stable
 
   ports:
   - port: 80

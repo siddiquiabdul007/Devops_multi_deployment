@@ -2,15 +2,24 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// core logic in one place
+const getUsers = () => ({
+  version: "stable-v1",
+  users: [
+    { id: 1, name: 'Alice', role: 'admin' },
+    { id: 2, name: 'Bob', role: 'user' },
+    { id: 3, name: 'Charlie', role: 'user' }
+  ]
+});
+
+// root route (internal usage)
+app.get('/', (req, res) => {
+  res.json(getUsers());
+});
+
+// external API route (ingress)
 app.get('/users', (req, res) => {
-  res.json({
-    version: "canary-v2",   // 👈 THIS IS THE MAGIC
-    users: [
-      { id: 1, name: 'Alice', role: 'admin' },
-      { id: 2, name: 'Bob', role: 'user' },
-      { id: 3, name: 'Charlie', role: 'user' }
-    ]
-  });
+  res.json(getUsers());
 });
 
 app.get('/health', (req, res) => {
