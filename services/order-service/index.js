@@ -4,7 +4,7 @@ const port = process.env.PORT || 3002;
 // In Kubernetes, this should point to the user-service ClusterIP address or DNS name
 const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
 
-app.get('/', async (req, res) => {
+app.get('/orders', async (req, res) => {
   try {
     const response = await fetch(`${userServiceUrl}/users`);
     if (!response.ok) {
