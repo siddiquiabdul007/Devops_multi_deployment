@@ -10,10 +10,11 @@ app.get('/orders', async (req, res) => {
     if (!response.ok) {
       throw new Error(`Failed to fetch users, status: ${response.status}`);
     }
-    const users = await response.json();
+    const data = await response.json();
+    const usersList = data.users || [];
 
     // Create some dummy orders for users
-    const orders = users.map((user, index) => ({
+    const orders = usersList.map((user, index) => ({
       orderId: `ORD-${1000 + index}`,
       userId: user.id,
       userName: user.name,
