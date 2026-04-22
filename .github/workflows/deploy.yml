@@ -1,10 +1,10 @@
 name: CI-CD GitOps Pipeline
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+push:
+branches:
+- main
+workflow_dispatch:
 
 env:
 ACR_NAME: ${{ secrets.ACR_NAME }}
@@ -17,58 +17,55 @@ runs-on: ubuntu-latest
 ```
 steps:
 
-# 📥 Checkout code
-- name: Checkout code
-  uses: actions/checkout@v4
+  # 📥 Checkout code
+  - name: Checkout code
+    uses: actions/checkout@v4
 
-# 🔐 Azure Login (using SP JSON - simpler & stable)
-- name: Azure Login
-  uses: azure/login@v1
-  with:
-    creds: ${{ secrets.AZURE_CREDENTIALS }}
+  # 🔐 Azure Login
+  - name: Azure Login
+    uses: azure/login@v1
+    with:
+      creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-# 🐳 Login to ACR
-- name: Login to ACR
-  run: az acr login --name $ACR_NAME
+  # 🐳 Login to ACR
+  - name: Login to ACR
+    run: az acr login --name $ACR_NAME
 
-# 🏷️ Set short SHA tag
-- name: Set Image Tag
-  run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+  # 🏷️ Set short SHA tag
+  - name: Set Image Tag
+    run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-# 🔨 Build images
-- name: Build images
-  run: |
-    docker build -t $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG ./services/user-service
-    docker build -t $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG ./services/order-service
+  # 🔨 Build images
+  - name: Build images
+    run: |
+      docker build -t $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG ./services/user-service
+      docker build -t $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG ./services/order-service
 
-# 📤 Push images
-- name: Push images
-  run: |
-    docker push $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG
-    docker push $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG
+  # 📤 Push images
+  - name: Push images
+    run: |
+      docker push $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG
+      docker push $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG
 
-# 📥 Clone GitOps repo
-- name: Clone GitOps Repo
-  run: |
-    git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/${{ secrets.GITOPS_REPO }}.git
+  # 📥 Clone GitOps repo
+  - name: Clone GitOps Repo
+    run: |
+      git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/${{ secrets.GITOPS_REPO }}.git
 
-# ✏️ Update manifests (DEV env)
-- name: Update manifests
-  run: |
-    cd gitops-deployments/dev
+  # ✏️ Update manifests
+  - name: Update manifests
+    run: |
+      cd gitops-deployments/dev
+      sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service.yaml
+      sed -i "s|$ACR_LOGIN_SERVER/order-service:.*|$ACR_LOGIN_SERVER/order-service:$IMAGE_TAG|g" order-service.yaml
 
-    sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service.yaml
-    sed -i "s|$ACR_LOGIN_SERVER/order-service:.*|$ACR_LOGIN_SERVER/order-service:$IMAGE_TAG|g" order-service.yaml
-
-# 📤 Commit & push changes
-- name: Push changes
-  run: |
-    cd gitops-deployments
-
-    git config user.name "github-actions"
-    git config user.email "actions@github.com"
-
-    git add .
-    git commit -m "CI: update images to $IMAGE_TAG" || echo "No changes"
-    git push
+  # 📤 Commit & push changes
+  - name: Push changes
+    run: |
+      cd gitops-deployments
+      git config user.name "github-actions"
+      git config user.email "actions@github.com"
+      git add .
+      git commit -m "CI: update images to $IMAGE_TAG" || echo "No changes"
+      git push
 ```
