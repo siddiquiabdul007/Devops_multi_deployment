@@ -56,7 +56,7 @@ jobs:
           cd gitops-deployments/dev
 
           # ✅ user-service (stable + canary)
-          sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service-stable.yaml
+          sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service.yaml
           sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service-canary.yaml
 
           # ✅ order-service
