@@ -50,11 +50,16 @@ jobs:
         run: |
           git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/${{ secrets.GITOPS_REPO }}.git gitops-deployments
 
-      # ✏️ Update manifests
+      # ✏️ Update manifests (FIXED)
       - name: Update manifests
         run: |
           cd gitops-deployments/dev
-          sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service.yaml
+
+          # ✅ user-service (stable + canary)
+          sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service-stable.yaml
+          sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service-canary.yaml
+
+          # ✅ order-service
           sed -i "s|$ACR_LOGIN_SERVER/order-service:.*|$ACR_LOGIN_SERVER/order-service:$IMAGE_TAG|g" order-service.yaml
 
       # 📤 Commit & push changes
