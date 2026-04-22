@@ -1,9 +1,10 @@
 name: CI-CD GitOps Pipeline
 
 on:
-push:
-branches:
-- main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 env:
 ACR_NAME: ${{ secrets.ACR_NAME }}
