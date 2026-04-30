@@ -1,13 +1,22 @@
-FROM node:18-alpine
+# ---------- Stage 1: Build ----------
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci --only=production
 
 COPY . .
+
+# ---------- Stage 2: Runtime ----------
+FROM gcr.io/distroless/nodejs20
+
+WORKDIR /app
+
+COPY --from=builder /app .
 
 ENV PORT=3001
 EXPOSE 3001
 
-CMD ["npm", "start"]
+# Directly run node with your file
+CMD ["index.js"]

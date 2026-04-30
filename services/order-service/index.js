@@ -34,5 +34,5 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Order service listening at http://localhost:${port}`);
+  console.log(`User service running on port ${port}`);
 });
