@@ -28,7 +28,7 @@ spec:
 
       containers:
       - name: order-service
-        image: devopsdevacr3168.azurecr.io/order-service:v1
+        image: devopsdevacr7583.azurecr.io/order-service:600f763
         imagePullPolicy: Always
         ports:
         - containerPort: 3002
