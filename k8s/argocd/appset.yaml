@@ -19,9 +19,9 @@ spec:
     spec:
       project: default
       source:
-        repoURL: 'https://github.com/siddiquiabdul007/gitops-deployments.git'
+        repoURL: 'https://github.com/siddiquiabdul007/Devops_multi_deployment.git'
         targetRevision: main
-        path: '{{env}}'
+        path: 'k8s/envs/{{env}}'
       destination:
         server: '{{server}}'
         namespace: '{{env}}'
