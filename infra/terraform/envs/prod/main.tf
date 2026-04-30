@@ -7,9 +7,11 @@ terraform {
     random = {
       source = "hashicorp/random"
     }
+  }
+
   backend "azurerm" {
     resource_group_name  = "tfstate-rg"
-    storage_account_name = "tfstate"
+    storage_account_name = "devopstfstate987654"
     container_name       = "tfstate"
     key                  = "prod.terraform.tfstate"
   }
