@@ -12,62 +12,83 @@ env:
 
 jobs:
   build-and-deploy:
+    name: Build and Deploy to DEV
     runs-on: ubuntu-latest
 
     steps:
-      # 📥 Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 🔐 Azure Login
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # 🐳 Login to ACR
       - name: Login to ACR
         run: az acr login --name $ACR_NAME
 
-      # 🏷️ Set short SHA tag
       - name: Set Image Tag
         run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      # 🔨 Build images
-      - name: Build images
+      - name: Build Docker Images
         run: |
           docker build -t $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG ./services/user-service
           docker build -t $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG ./services/order-service
 
-      # 📤 Push images
-      - name: Push images
+      - name: Push Docker Images
         run: |
           docker push $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG
           docker push $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG
 
-      # 📥 Clone GitOps repo
-      - name: Clone GitOps Repo
+      - name: Clone GitOps Repository
         run: |
           git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/${{ secrets.GITOPS_REPO }}.git gitops-deployments
 
-      # ✏️ Update manifests (FIXED)
-      - name: Update manifests
+      - name: Update DEV Manifests
         run: |
           cd gitops-deployments/dev
-
-          # ✅ user-service (stable + canary)
           sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service.yaml
           sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service-canary.yaml
-
-          # ✅ order-service
           sed -i "s|$ACR_LOGIN_SERVER/order-service:.*|$ACR_LOGIN_SERVER/order-service:$IMAGE_TAG|g" order-service.yaml
 
-      # 📤 Commit & push changes
-      - name: Push changes
+      - name: Commit and Push DEV Changes
         run: |
           cd gitops-deployments
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add .
-          git commit -m "CI: update images to $IMAGE_TAG" || echo "No changes"
+          git commit -m "CI: update DEV images to $IMAGE_TAG" || echo "No changes"
+          git push
+
+  deploy-prod:
+    name: Promote to PROD (Manual Approval)
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set Image Tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Clone GitOps Repository
+        run: |
+          git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/${{ secrets.GITOPS_REPO }}.git gitops-deployments
+
+      - name: Update PROD Manifests
+        run: |
+          cd gitops-deployments/prod
+          sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service.yaml
+          sed -i "s|$ACR_LOGIN_SERVER/user-service:.*|$ACR_LOGIN_SERVER/user-service:$IMAGE_TAG|g" user-service-canary.yaml
+          sed -i "s|$ACR_LOGIN_SERVER/order-service:.*|$ACR_LOGIN_SERVER/order-service:$IMAGE_TAG|g" order-service.yaml
+
+      - name: Commit and Push PROD Changes
+        run: |
+          cd gitops-deployments
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Promote to PROD $IMAGE_TAG" || echo "No changes"
           git push
