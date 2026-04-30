@@ -13,5 +13,11 @@ patchesJson6902:
       group: networking.k8s.io
       version: v1
       kind: Ingress
+      name: platform-ingress
+    path: ingress-ssl-redirect-patch.yaml
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
       name: user-service-canary
     path: ingress-canary-patch.yaml

@@ -14,9 +14,15 @@ export const options = {
 };
 
 export default function () {
-  const url = __ENV.TARGET_URL || 'http://localhost:3001';
-  
-  const res = http.get(`${url}/health`);
+  const baseUrl = __ENV.TARGET_URL || 'http://4.188.101.151';
+  const hostHeader = __ENV.HOST_HEADER || 'dev.api.example.com';
+
+  const params = {
+    headers: { 'Host': hostHeader },
+    insecureSkipTLSVerify: true,
+  };
+
+  const res = http.get(`${baseUrl}/health`, params);
   check(res, {
     'is status 200': (r) => r.status === 200,
   });
