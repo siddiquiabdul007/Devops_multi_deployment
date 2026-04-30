@@ -1,4 +1,8 @@
+require('./tracing');
 const express = require('express');
+const pino = require('pino');
+const logger = pino();
+
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -14,11 +18,13 @@ const getUsers = () => ({
 
 // root route (internal usage)
 app.get('/', (req, res) => {
+  logger.info('GET / requested');
   res.json(getUsers());
 });
 
 // external API route (ingress)
 app.get('/users', (req, res) => {
+  logger.info('GET /users requested');
   res.json(getUsers());
 });
 
@@ -27,5 +33,5 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`User service running on port ${port}`);
+  logger.info(`User service running on port ${port}`);
 });

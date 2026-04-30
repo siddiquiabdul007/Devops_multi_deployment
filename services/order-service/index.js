@@ -1,10 +1,15 @@
+require('./tracing');
 const express = require('express');
+const pino = require('pino');
+const logger = pino();
+
 const app = express();
 const port = process.env.PORT || 3002;
 // In Kubernetes, this should point to the user-service ClusterIP address or DNS name
 const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
 
 app.get('/orders', async (req, res) => {
+  logger.info('GET /orders requested');
   try {
     const response = await fetch(`${userServiceUrl}/users`);
     if (!response.ok) {
@@ -24,7 +29,7 @@ app.get('/orders', async (req, res) => {
 
     res.json(orders);
   } catch (error) {
-    console.error('Error fetching users:', error);
+    logger.error({ err: error }, 'Error fetching users');
     res.status(500).json({ error: 'Failed to fetch users from user-service', details: error.message });
   }
 });
@@ -34,5 +39,5 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`User service running on port ${port}`);
+  logger.info(`Order service running on port ${port}`);
 });

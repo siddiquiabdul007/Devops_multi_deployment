@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: devops-microservices
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            server: https://kubernetes.default.svc
+          - env: staging
+            server: https://kubernetes.default.svc
+          - env: prod
+            server: https://kubernetes.default.svc
+  template:
+    metadata:
+      name: '{{env}}-microservices'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://github.com/siddiquiabdul007/gitops-deployments.git'
+        targetRevision: main
+        path: '{{env}}'
+      destination:
+        server: '{{server}}'
+        namespace: '{{env}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

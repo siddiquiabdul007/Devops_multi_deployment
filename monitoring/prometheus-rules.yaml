@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-alerts
+  labels:
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+  - name: services.rules
+    rules:
+    - alert: HighErrorRate
+      expr: job:request_error_rate{job=~"user-service|order-service"} > 0.05
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: High HTTP error rate on {{ $labels.job }}
+        description: Error rate is > 5% for the last minute.
+    - alert: HighLatency
+      expr: job:request_latency_p99{job=~"user-service|order-service"} > 0.5
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: High latency on {{ $labels.job }}
+        description: 99th percentile latency is > 500ms for 2 minutes.

@@ -27,6 +27,18 @@ spec:
         version: stable
 
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: user-service
+
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
+
       containers:
       - name: user-service
         image: devopsdevacr3168.azurecr.io/user-service:v1
@@ -38,6 +50,19 @@ spec:
         env:
         - name: PORT
           value: "3001"
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
 
         resources:
           requests:
