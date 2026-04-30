@@ -18,20 +18,29 @@ jobs:
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint
+
       - name: Run yamllint
-        run: yamllint . -d "{extends: relaxed, rules: {line-length: disable}}"
-        
-      - name: Run hadolint
-        uses: hadolint/hadolint-action@54c92aca64ba44cc6e91f6305a42828bce06cc0a
+        run: |
+          yamllint . -d '
+          extends: relaxed
+          rules:
+            line-length: disable
+          '
+
+      - name: Run hadolint (user-service)
+        uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ./services/user-service/Dockerfile
-      
-      - name: Run hadolint on order-service
-        uses: hadolint/hadolint-action@54c92aca64ba44cc6e91f6305a42828bce06cc0a
+
+      - name: Run hadolint (order-service)
+        uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ./services/order-service/Dockerfile
 
@@ -42,10 +51,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
 
       - name: Azure Login (OIDC)
-        uses: azure/login@a65d910e8af852a8061c627c456678983e180302
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -58,28 +67,29 @@ jobs:
         run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build user-service
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6dea2738ad35336c
+      # ✅ FIXED: Build + push directly (no manual docker push needed)
+      - name: Build and push user-service
+        uses: docker/build-push-action@v5
         with:
           context: ./services/user-service
-          load: true
+          push: true
           tags: ${{ env.ACR_LOGIN_SERVER }}/user-service:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build order-service
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6dea2738ad35336c
+      - name: Build and push order-service
+        uses: docker/build-push-action@v5
         with:
           context: ./services/order-service
-          load: true
+          push: true
           tags: ${{ env.ACR_LOGIN_SERVER }}/order-service:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Scan user-service image with Trivy
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           image-ref: ${{ env.ACR_LOGIN_SERVER }}/user-service:${{ env.IMAGE_TAG }}
           format: table
@@ -89,7 +99,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Scan order-service image with Trivy
-        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           image-ref: ${{ env.ACR_LOGIN_SERVER }}/order-service:${{ env.IMAGE_TAG }}
           format: table
@@ -98,15 +108,10 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH
 
-      - name: Push Docker Images
-        run: |
-          docker push $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG
-          docker push $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG
-
       - name: Install Cosign
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20
+        uses: sigstore/cosign-installer@v3.5.0
 
-      - name: Sign the published Docker images
+      - name: Sign Docker images
         run: |
           cosign sign --yes $ACR_LOGIN_SERVER/user-service:$IMAGE_TAG
           cosign sign --yes $ACR_LOGIN_SERVER/order-service:$IMAGE_TAG
@@ -115,26 +120,26 @@ jobs:
     name: Run Smoke Tests on DEV
     needs: build-and-deploy
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
 
       - name: Install k6
         run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update
-          sudo apt-get install k6
+          sudo apt-get install -y gnupg
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
 
       - name: Run k6 smoke test
-        run: |
-          k6 run tests/smoke.js
+        run: k6 run tests/smoke.js
         env:
-          TARGET_URL: "http://dev-url.example.com" # Should be updated based on Ingress
-
-      - name: Rollback on Failure
-        if: failure()
-        run: |
-          echo "Smoke test failed! Triggering rollback (e.g., argocd app rollback dev-microservices)"
-          # We would execute rollback logic here, e.g. argocd rollback or kubectl rollout undo
+          
+          TARGET_URL: "http://4.188.101.151"
