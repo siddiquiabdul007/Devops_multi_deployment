@@ -88,6 +88,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Get ACR token for Trivy
+        id: acr-token
+        run: |
+          TOKEN=$(az acr login --name $ACR_NAME --expose-token --output tsv --query accessToken)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
       - name: Scan user-service image with Trivy
         uses: aquasecurity/trivy-action@v0.24.0
         with:
@@ -97,6 +104,9 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
+        env:
+          TRIVY_USERNAME: 00000000-0000-0000-0000-000000000000
+          TRIVY_PASSWORD: ${{ steps.acr-token.outputs.token }}
 
       - name: Scan order-service image with Trivy
         uses: aquasecurity/trivy-action@v0.24.0
@@ -107,6 +117,9 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
+        env:
+          TRIVY_USERNAME: 00000000-0000-0000-0000-000000000000
+          TRIVY_PASSWORD: ${{ steps.acr-token.outputs.token }}
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.5.0
