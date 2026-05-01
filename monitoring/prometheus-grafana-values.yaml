@@ -2,7 +2,7 @@ grafana:
   enabled: true
   adminPassword: "prom-operator"
   defaultDashboardsEnabled: true
-  
+
   # Inject an extra custom dashboard provider for our application
   dashboardProviders:
     dashboardproviders.yaml:
@@ -16,7 +16,7 @@ grafana:
         editable: true
         options:
           path: /var/lib/grafana/dashboards/default
-          
+
   dashboards:
     default:
       application-metrics:

@@ -141,5 +141,5 @@ jobs:
       - name: Run k6 smoke test
         run: k6 run tests/smoke.js
         env:
-          
+
           TARGET_URL: "http://4.188.101.151"

@@ -1,0 +1,6 @@
+extends: relaxed
+
+ignore: |
+  node_modules/
+  services/*/node_modules/
+  .git/

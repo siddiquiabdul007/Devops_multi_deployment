@@ -85,7 +85,7 @@ jobs:
           # Update the images to use the specific commit SHA
           sed -i "s|devopsmulticloudacr.azurecr.io/user-service:latest|${{ env.ACR_LOGIN_SERVER }}/user-service:$IMAGE_TAG|g" ./k8s/base/user-service.yaml
           sed -i "s|devopsmulticloudacr.azurecr.io/order-service:latest|${{ env.ACR_LOGIN_SERVER }}/order-service:$IMAGE_TAG|g" ./k8s/base/order-service.yaml
-          
+
           kubectl apply -f ./k8s/base/
 
       - name: Verify Deployment / Rollback if failed
