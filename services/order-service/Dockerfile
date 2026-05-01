@@ -9,7 +9,7 @@ RUN npm ci --only=production
 COPY . .
 
 # ---------- Stage 2: Runtime ----------
-FROM gcr.io/distroless/nodejs20
+FROM gcr.io/distroless/nodejs20:nonroot
 
 WORKDIR /app
 
