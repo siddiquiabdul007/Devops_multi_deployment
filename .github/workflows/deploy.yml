@@ -35,12 +35,12 @@ jobs:
           '
 
       - name: Run hadolint (user-service)
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: ./services/user-service/Dockerfile
 
       - name: Run hadolint (order-service)
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: ./services/order-service/Dockerfile
 
