@@ -71,7 +71,7 @@ jobs:
 
       # ✅ FIXED: Build + push directly (no manual docker push needed)
       - name: Build and push user-service
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./services/user-service
           push: true
@@ -80,7 +80,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push order-service
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./services/order-service
           push: true
