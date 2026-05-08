@@ -1,6 +1,8 @@
 # 🚀 GitOps Platform — AKS · ArgoCD · GitHub Actions · Prometheus
 
 [![CI/CD Pipeline](https://github.com/siddiquiabdul007/Devops_multi_deployment/actions/workflows/deploy.yml/badge.svg)](https://github.com/siddiquiabdul007/Devops_multi_deployment/actions/workflows/deploy.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/siddiquiabdul007/Devops_multi_deployment)](https://github.com/siddiquiabdul007/Devops_multi_deployment/commits/main)
+[![Top Language](https://img.shields.io/github/languages/top/siddiquiabdul007/Devops_multi_deployment)](https://github.com/siddiquiabdul007/Devops_multi_deployment)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-1.34-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io)
 [![ArgoCD](https://img.shields.io/badge/ArgoCD-GitOps-EF7B4D?logo=argo&logoColor=white)](https://argo-cd.readthedocs.io)
@@ -10,7 +12,28 @@ A **production-grade GitOps platform** running on Azure Kubernetes Service (AKS)
 
 ---
 
+## 🛠️ Tech Stack
+
+| Tool | Purpose | Version |
+|------|---------|---------|
+| **Terraform** | Infrastructure as Code (IaC) | 1.9+ |
+| **AKS** | Managed Kubernetes Cluster | 1.34 |
+| **ACR** | Private Container Registry | Premium |
+| **GitHub Actions** | CI/CD Automation | V2 |
+| **ArgoCD** | GitOps Continuous Deployment | latest |
+| **Prometheus** | Metrics & Monitoring | kube-prometheus-stack |
+| **Grafana** | Data Visualization | v11+ |
+| **Hadolint** | Dockerfile Linter | v2.12.0 |
+| **Trivy** | Container Vulnerability Scanner | v0.50+ |
+| **Cosign** | Keyless Image Signing (OIDC) | v2.2+ |
+| **Yamllint** | YAML Configuration Linter | v1.35+ |
+| **k6** | Smoke & Load Testing | latest |
+
+---
+
 ## 🏗️ Architecture
+
+> Uses the **Split-Repo GitOps Pattern** — the application repo handles CI; the [gitops-deployments](https://github.com/siddiquiabdul007/gitops-deployments) repo is the sole source of truth for the cluster's desired state.
 
 ![GitOps Platform Architecture](docs/architecture.png)
 
@@ -25,23 +48,6 @@ A **production-grade GitOps platform** running on Azure Kubernetes Service (AKS)
 | **Observability** | kube-prometheus-stack | Prometheus · Grafana · Alertmanager → Slack |
 | **IaC** | Terraform | Remote state in Azure Blob; modular `/modules/aks`, `/modules/acr` |
 | **Security** | Trivy + Cosign + Azure Defender | Image scanning + keyless signing + runtime protection |
-
----
-
-## 🌍 Environments
-
-Three fully isolated namespaces, each reconciled independently by ArgoCD:
-
-| Environment | Namespace | Ingress Host | Image Tag Strategy |
-|-------------|-----------|--------------|-------------------|
-| **dev** | `dev` | `dev.api.example.com` | Every push to `main` |
-| **staging** | `staging` | `staging.api.example.com` | Same tag, separate namespace |
-| **prod** | `prod` | `prod.api.example.com` | Same tag, separate namespace |
-
-Each environment runs:
-- `user-service` (stable — 90% traffic)
-- `user-service-canary` (10% traffic weight via NGINX canary annotation)
-- `order-service`
 
 ---
 
@@ -61,66 +67,40 @@ ArgoCD polls gitops-deployments repo every 3 min
   └── prod-microservices  → k8s/envs/prod/
 ```
 
-> CI **never runs `kubectl`**. ArgoCD is the only actor that writes to the cluster.
+> CI **never runs `kubectl`**. ArgoCD is the only actor that writes to the cluster. Any manual drift is automatically self-healed.
 
 ---
 
-## 🧩 Services
+## 🌍 Environments
 
-### `user-service` (`services/user-service/`)
-Node.js REST API. Provides user data on `/users` and health check on `/health`.
-- Port: `3001`
-- Security: non-root, read-only filesystem, drop all capabilities
+Three fully isolated namespaces, each reconciled independently by ArgoCD using **Kustomize overlays**:
 
-### `order-service` (`services/order-service/`)
-Node.js REST API. Provides order data on `/orders`, calls `user-service` internally.
-- Port: `3002`
-- Security: same hardened profile as user-service
+| Environment | Namespace | Ingress Host | Image Tag Strategy |
+|-------------|-----------|--------------|-------------------|
+| **dev** | `dev` | `dev.api.example.com` | Every push to `main` |
+| **staging** | `staging` | `staging.api.example.com` | Same tag, separate namespace |
+| **prod** | `prod` | `prod.api.example.com` | Same tag, separate namespace |
+
+Each environment runs:
+- `user-service` (stable — 90% traffic)
+- `user-service-canary` (10% traffic weight via NGINX canary annotation)
+- `order-service`
 
 ---
 
-## 🏗️ Infrastructure (Terraform)
+## 🛡️ Security & Quality Gates
 
-```
-infra/terraform/
-├── modules/
-│   ├── aks/          # AKS cluster (OIDC + Workload Identity)
-│   ├── acr/          # Azure Container Registry
-│   └── networking/   # VNet, subnets
-└── envs/
-    ├── dev/          # Calls modules, state in Azure Blob
-    └── prod/         # Same modules, separate state key
-```
+Security is enforced at every layer via a **shift-left** approach:
 
-Remote state backend — Azure Blob Storage (`devopstfstate987654`).
-
-### Bootstrap
-
-```bash
-# 1. Provision infrastructure
-cd infra/terraform/envs/dev
-terraform init   # pulls state from Azure Blob
-terraform plan
-terraform apply
-
-# 2. Merge cluster credentials
-az aks get-credentials \
-  --resource-group devops-dev-rg \
-  --name devops-dev-aks \
-  --overwrite-existing
-
-# 3. Install ArgoCD (server-side apply handles CRD size limit)
-kubectl apply --server-side --force-conflicts -k k8s/argocd/
-
-# 4. Apply ApplicationSet (creates all 3 apps)
-kubectl apply -f k8s/argocd/appset.yaml
-
-# 5. Install platform components
-kubectl apply -k k8s/ingress/
-kubectl apply -k k8s/cert-manager/
-helm install prometheus prometheus-community/kube-prometheus-stack \
-  --namespace monitoring --create-namespace
-```
+| Gate | Tool | Detail |
+|------|------|--------|
+| **Dockerfile Linting** | Hadolint v2.12.0 | Enforces best practices (specific tags, rootless execution) before build |
+| **YAML Linting** | Yamllint v1.35+ | Ensures error-free K8s manifests and CI workflows |
+| **Vulnerability Scanning** | Trivy v0.50+ | Pipeline fails immediately on any `CRITICAL` or `HIGH` unfixed CVE |
+| **Keyless Image Signing** | Cosign v2.2+ (OIDC) | Ephemeral keys via GitHub Actions OIDC — no long-lived credentials |
+| **Zero-Trust Pod Security** | Kubernetes PSS | `runAsNonRoot`, `readOnlyRootFilesystem`, `capabilities: drop: [ALL]` |
+| **Workload Identity** | Azure Entra ID | Federated identity for ACR pulls — no `ImagePullSecrets` needed |
+| **Runtime Protection** | Azure Defender | Continuous compliance monitoring across the subscription |
 
 ---
 
@@ -136,17 +116,6 @@ helm install prometheus prometheus-community/kube-prometheus-stack \
 
 ---
 
-## 🔒 Security
-
-- **Trivy** scans every image build; fails pipeline on `CRITICAL` or `HIGH` unfixed CVEs
-- **Cosign** signs images after push using **keyless OIDC** (no stored signing keys)
-- **Pod Security**: `runAsNonRoot`, `readOnlyRootFilesystem`, `capabilities: drop: [ALL]`
-- **NetworkPolicies**: Default-deny-all; explicit allow per service
-- **Azure Defender for Containers**: Enabled at subscription level
-- **Workload Identity**: AKS uses OIDC + Federated Identity; no service principal passwords
-
----
-
 ## ⚖️ Reliability
 
 | Mechanism | Config |
@@ -154,41 +123,15 @@ helm install prometheus prometheus-community/kube-prometheus-stack \
 | **HPA** | `minReplicas: 1 → maxReplicas: 5` at 70% CPU |
 | **PodDisruptionBudget** | `minAvailable: 1` for both services |
 | **VPA** | Installed in `Off` mode (recommendation only) |
-| **TopologySpreadConstraints** | Spread across availability zones |
+| **TopologySpreadConstraints** | Pods spread across Azure Availability Zones |
 | **Canary Deployment** | 10% weight via `nginx.ingress.kubernetes.io/canary-weight: "10"` |
 | **Rolling Updates** | `maxUnavailable: 0`, `maxSurge: 1` |
 
 ---
 
-## 🧪 Smoke Tests
+## 🧪 Automated Smoke Testing
 
-```bash
-# Run k6 against the dev ingress IP
-k6 run \
-  --env TARGET_URL=http://4.188.101.151 \
-  --env HOST_HEADER=dev.api.example.com \
-  tests/smoke.js
-```
-
-**Last run results:**
-```
-✓ http_req_duration  p(99)=31.24ms  (threshold: <500ms)
-✓ http_req_failed    rate=0.00%     (threshold: <1%)
-✓ is status 200      153/153        100%
-```
-
----
-
-## 📸 Screenshots
-
-### ArgoCD — All 3 Environments Synced & Healthy
-![ArgoCD Applications](docs/screenshots/argocd-all-healthy.png)
-
-### Kubernetes Pods — All Running
-![Kubernetes Pods](docs/screenshots/kubernetes-pods-running.png)
-
-### k6 Smoke Test — Passed
-![k6 Smoke Test](docs/screenshots/k6-smoke-test-pass.png)
+After every deployment to `dev`, a **k6 smoke test** runs against the live Ingress IP (`http://4.188.101.151`) to verify the application is serving traffic before the pipeline is marked successful.
 
 ---
 
@@ -200,10 +143,10 @@ Devops_multi_deployment/
 │   └── workflows/
 │       ├── deploy.yml          # Main CI/CD pipeline
 │       └── terraform-pr.yml    # Terraform plan on PR
-├── services/
+├── services/                   # Microservices source code
 │   ├── user-service/           # Node.js user API
 │   └── order-service/          # Node.js order API
-├── k8s/
+├── k8s/                        # Kubernetes manifests
 │   ├── argocd/                 # ArgoCD install + ApplicationSet
 │   ├── base/                   # Shared K8s manifests (Kustomize base)
 │   ├── envs/
@@ -212,28 +155,52 @@ Devops_multi_deployment/
 │   │   └── prod/               # Prod overlay
 │   ├── ingress/                # NGINX Ingress Controller
 │   └── cert-manager/           # cert-manager + ClusterIssuer
-├── infra/terraform/
+├── infra/terraform/            # Infrastructure as Code
 │   ├── modules/                # Reusable AKS, ACR, networking modules
 │   └── envs/                   # dev + prod environment configs
 ├── monitoring/                 # PrometheusRules, AlertmanagerConfig, Grafana dashboards
 ├── tests/
 │   └── smoke.js                # k6 smoke test
 ├── docs/
-│   ├── architecture.png        # Architecture diagram
-│   └── screenshots/            # Evidence: ArgoCD, k6, pods
-├── RUNBOOK.md                  # Operational notes and known fixes
-└── CONTRIBUTING.md             # PR + branch protection guidelines
+│   ├── architecture.png
+│   └── screenshots/
+├── RUNBOOK.md
+└── CONTRIBUTING.md
 ```
 
 ---
 
-## 🛠️ Operational Notes
+## 📸 Gallery
 
-See **[RUNBOOK.md](RUNBOOK.md)** for documented fixes and operational procedures including:
-- AKS OIDC Terraform configuration
-- ArgoCD CRD server-side apply workaround
-- cert-manager webhook cleanup
-- Node scaling rationale
+### 1. Full Pipeline Run (All Environments)
+![Pipeline Overview](docs/screenshots/pipeline-overview.png)
+
+### 2. CI/CD Security Gates (Trivy + Cosign)
+![Build, Scan, and Sign](docs/screenshots/build-scan-sign.png)
+
+### 3. Code Quality Gates (Hadolint + Yamllint)
+![Lint Code](docs/screenshots/lint-steps.png)
+
+### 4. Continuous Deployment (ArgoCD)
+![ArgoCD Synced](docs/screenshots/argocd-all-healthy.png)
+
+### 5. Automated Smoke Testing (k6)
+![k6 Smoke Test](docs/screenshots/k6-smoke-test-pass.png)
+
+### 6. Cluster Workloads
+![Kubernetes Pods](docs/screenshots/kubernetes-pods-running.png)
+
+### 7. Observability (Grafana / Prometheus)
+![Grafana Dashboard](docs/screenshots/grafana-dashboard.png)
+
+---
+
+## 🚀 Roadmap
+
+- **Service Mesh**: Integrate Istio or Linkerd for mTLS and advanced traffic routing.
+- **Advanced GitOps**: Implement Argo Rollouts for automated canary analysis with Prometheus metrics.
+- **Cost Optimization**: Auto-scaling node pools to zero and utilizing spot instances for non-production environments.
+- **Chaos Engineering**: Introduce LitmusChaos or Chaos Mesh to validate system resilience.
 
 ---
 
