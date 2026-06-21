@@ -122,7 +122,7 @@ jobs:
           TRIVY_PASSWORD: ${{ steps.acr-token.outputs.token }}
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.5.0
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign Docker images
         run: |
